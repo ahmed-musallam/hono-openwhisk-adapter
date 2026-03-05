@@ -7,7 +7,7 @@ Hono adapter for OpenWhisk. Exposes a handler that accepts OpenWhisk HTTP params
 ### From npm (when published)
 
 ```bash
-npm install hono-openwhisk-adapter hono @adobe/aio-lib-state
+npm install hono-openwhisk-adapter hono
 ```
 
 ### Using `npm link`
