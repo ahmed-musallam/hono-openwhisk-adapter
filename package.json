@@ -1,0 +1,54 @@
+{
+  "name": "hono-openwhisk-adapter",
+  "version": "0.0.1",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "watch": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
+    "fmt": "oxfmt .",
+    "fmt:check": "oxfmt --check .",
+    "prepare": "husky"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.0",
+    "@semantic-release/git": "^10.0.0",
+    "@semantic-release/github": "^9.0.0",
+    "@semantic-release/npm": "^11.0.0",
+    "@types/node": "^25.3.3",
+    "hono": "^4.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "oxfmt": "^0.35.0",
+    "oxlint": "^1.0.0",
+    "semantic-release": "^24.2.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "hono": "^4.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,md}": [
+      "oxfmt --write"
+    ],
+    "*.{ts,tsx,js,jsx}": [
+      "oxlint --fix"
+    ]
+  }
+}
