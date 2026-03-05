@@ -36,7 +36,7 @@ application:
 
 ```ts
 // actions/my-action.ts
-import { Hono } from "hono";
+import { Hono } from "hono/quick"; // see presets: https://hono.dev/docs/api/presets#which-preset-should-i-use
 import { OWRawHttpParams, ToOpenWhiskAction } from "hono-openwhisk-adapter";
 
 const app = new Hono();
@@ -55,7 +55,7 @@ _this is common for env variables_
 
 ```ts
 // actions/my-action.ts
-import { Hono } from "hono";
+import { Hono } from "hono/quick"; // see presets: https://hono.dev/docs/api/presets#which-preset-should-i-use
 import { OWRawHttpParams, ToOpenWhiskAction } from "hono-openwhisk-adapter";
 
 // types of your params
