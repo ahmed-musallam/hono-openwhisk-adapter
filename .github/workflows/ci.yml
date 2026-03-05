@@ -12,7 +12,7 @@ on:
 
 jobs:
   validate:
-    name: Lint, format & build
+    name: Pull Request Validation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
