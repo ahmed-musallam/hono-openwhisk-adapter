@@ -101,10 +101,8 @@ import { z } from "zod";
 import { ToOpenWhiskAction, zodOwParamsValidator, type OwEnv } from "hono-openwhisk-adapter";
 
 const ParamsSchema = z.object({
-  __ow_path: z.string().optional(),
-  __ow_method: z.string().optional(),
-  MY_VAR_ONE: z.string().optional(),
-  MY_VAR_TWO: z.string().optional(),
+  MY_VAR_ONE: z.string().nonempty(),
+  MY_VAR_TWO: z.string().nonempty(),
 });
 
 // Params type inferred from the Zod schema:
