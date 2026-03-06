@@ -1,7 +1,7 @@
-import type { OWRawHttpParams, ActionResponse } from "../types/openwhisk-types";
+import type { OwRawHttpParams, OwActionResponse } from "../types";
 
 function parseQuery(query: string | Record<string, string> | undefined): URLSearchParams {
-  if (query === undefined || query === null) {
+  if (!query) {
     return new URLSearchParams();
   }
   // most cases
@@ -16,7 +16,7 @@ function parseQuery(query: string | Record<string, string> | undefined): URLSear
  * Mirrors the extraction used in ow-s2s-proxy: path, method, query, headers, body.
  * With raw-http: true, __ow_body is typically base64-encoded; it is decoded here.
  */
-export function paramsToRequest(params: OWRawHttpParams): Request {
+export function paramsToRequest(params: OwRawHttpParams): Request {
   const path = params.__ow_path ?? "/";
   const method = (params.__ow_method ?? "GET").toUpperCase();
   const searchParams = parseQuery(params.__ow_query as string | Record<string, string> | undefined);
@@ -42,17 +42,50 @@ export function paramsToRequest(params: OWRawHttpParams): Request {
   return new Request(url.toString(), init);
 }
 /**
- * Converts a Response from Hono into OpenWhisk ActionResponse (statusCode, headers, body as string).
+ * Text media types from Apache Pekko HTTP MediaTypes (WithOpenCharset, WithFixedCharset, Multipart — i.e. not Binary).
+ * @see https://pekko.apache.org/api/pekko-http/snapshot/org/apache/pekko/http/scaladsl/model/MediaTypes$.html
  */
-export async function responseToActionResponse(response: Response): Promise<ActionResponse> {
-  const body = await response.text();
+// Use regexes to match major content types, subtypes, and multipart types that are considered "text"
+const TEXT_CONTENT_TYPE_REGEXES: RegExp[] = [
+  /^text\/.+/i,
+  /^application\/((atom|rss|soap|.*\.kml|\w+\+json|\w+\+xml|javascript|json([-+][\w]+)?|merge-patch\+json|problem\+json|problem\+xml|xhtml\+xml|xml|xml-dtd|x-latex|x-vrml|x-www-form-urlencoded|base64|x-latex|x-vrml))/i,
+  /^multipart\/(alternative|byteranges|encrypted|form-data|mixed|related|signed)$/i,
+];
+
+function isTextContentType(contentType: string | null): boolean {
+  if (!contentType) return true;
+  const mediaType = contentType.split(";")[0].trim().toLowerCase();
+  return TEXT_CONTENT_TYPE_REGEXES.some((regex) => regex.test(mediaType));
+}
+
+/**
+ * Converts a Response from Hono into OpenWhisk ActionResponse (statusCode, headers, body).
+ * Body is a string: plain text or JSON as-is; binary data (e.g. image/*, application/octet-stream) is base64-encoded.
+ */
+export async function responseToActionResponse(response: Response): Promise<OwActionResponse> {
+  const contentType = response.headers?.get?.("content-type") ?? null;
+  const arrayBuffer = await response.arrayBuffer();
+
+  const body = isTextContentType(contentType)
+    ? new TextDecoder().decode(arrayBuffer)
+    : Buffer.from(arrayBuffer).toString("base64");
+
   const headers: Record<string, string> = {};
   response.headers.forEach((value, key) => {
     headers[key] = value;
   });
+  if (response.status < 200 || response.status >= 300) {
+    return {
+      error: {
+        statusCode: response.status,
+        headers,
+        body,
+      },
+    };
+  }
   return {
     statusCode: response.status,
-    headers: Object.keys(headers).length > 0 ? headers : undefined,
+    headers,
     body,
   };
 }

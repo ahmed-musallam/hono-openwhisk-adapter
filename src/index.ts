@@ -1,2 +1,3 @@
 export * from "./adapter/openwhisk-action-adapter";
-export * from "./types/openwhisk-types";
+export * from "./types";
+export * from "./validator/zod-ow-params-validator";
