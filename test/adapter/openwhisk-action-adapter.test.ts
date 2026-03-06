@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { ToOpenWhiskAction } from "../../src/adapter/openwhisk-action-adapter";
-import type { OwAction, OwEnv, OwRawHttpParams } from "../../src/types";
+import type { OwAction, OwEnv } from "../../src/types";
 import { zodOwParamsValidator } from "../../src/validator/zod-ow-params-validator";
 import { z } from "zod";
 
@@ -60,10 +60,10 @@ class OwHelper {
   };
   static errorResponse = (statusCode: number, body: string) => {
     return {
+      headers: expect.any(Object),
       error: {
         statusCode,
         body,
-        headers: expect.any(Object),
       },
     };
   };
@@ -255,20 +255,10 @@ describe("ToOpenWhiskAction", () => {
     // ensure console.error is called but not logged while testing
     withConsoleErrorCapture(/Error validating Action params:/, async () => {
       await expect(
-        main({
-          __ow_path: "/hello",
-          __ow_method: "GET",
-          // specifically no myParam provided to fail validation
-        } as OwRawHttpParams & { myParam: string }), // explicitly cast to the expected type
-      ).resolves.toEqual({
-        error: {
-          statusCode: 500,
-          headers: {
-            "content-type": "text/plain; charset=UTF-8",
-          },
-          body: "Internal Server Error: action params validation failed",
-        },
-      });
+        OwHelper.get(main, {}), // specifically no myParam provided to fail validation
+      ).resolves.toEqual(
+        OwHelper.errorResponse(500, "Internal Server Error: action params validation failed"),
+      );
     });
   });
 
