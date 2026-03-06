@@ -1,3 +1,12 @@
+# [2.0.0](https://github.com/ahmed-musallam/hono-openwhisk-adapter/compare/v1.0.0...v2.0.0) (2026-03-06)
+
+- refactor!: generic param validation, error handling, and binary support ([deae72b](https://github.com/ahmed-musallam/hono-openwhisk-adapter/commit/deae72bb0d08612fa44f0cb2cbc27c43bf94e7d7))
+
+### BREAKING CHANGES
+
+- The `ToOpenWhiskAction` signature now accepts an optional `validateOwParams` function and no longer takes a logger.
+- `OwActionResponse` for non-2xx statuses now uses an `error` field.
+
 # 1.0.0 (2026-03-05)
 
 ### Features
