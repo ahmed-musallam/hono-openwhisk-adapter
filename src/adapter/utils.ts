@@ -58,6 +58,25 @@ function isTextContentType(contentType: string | null): boolean {
   return TEXT_CONTENT_TYPE_REGEXES.some((regex) => regex.test(mediaType));
 }
 
+export function buildOwResponse(
+  statusCode: number,
+  headers: Record<string, string>,
+  body: string,
+): OwActionResponse {
+  const owResponse = {
+    statusCode,
+    headers,
+    body,
+  };
+  // if status is not 2xx, wrap response  in error object, see: https://developer.adobe.com/app-builder/docs/guides/runtime_guides/creating-actions#unsuccessful-response
+  if (statusCode < 200 || statusCode >= 300) {
+    return {
+      error: owResponse,
+    };
+  }
+  return owResponse;
+}
+
 /**
  * Converts a Response from Hono into OpenWhisk ActionResponse (statusCode, headers, body).
  * Body is a string: plain text or JSON as-is; binary data (e.g. image/*, application/octet-stream) is base64-encoded.
@@ -74,18 +93,6 @@ export async function responseToActionResponse(response: Response): Promise<OwAc
   response.headers.forEach((value, key) => {
     headers[key] = value;
   });
-  if (response.status < 200 || response.status >= 300) {
-    return {
-      error: {
-        statusCode: response.status,
-        headers,
-        body,
-      },
-    };
-  }
-  return {
-    statusCode: response.status,
-    headers,
-    body,
-  };
+
+  return buildOwResponse(response.status, headers, body);
 }

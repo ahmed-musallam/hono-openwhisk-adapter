@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import type { OwAction, OwActionResponse, OwParamsValidator, OwRawHttpParams } from "../types";
-import { paramsToRequest, responseToActionResponse } from "./utils";
+import { buildOwResponse, paramsToRequest, responseToActionResponse } from "./utils";
 
 export type { OwEnv } from "../types";
 
@@ -38,15 +38,11 @@ export function ToOpenWhiskAction<TParams = OwRawHttpParams>(
       validateOwParams?.(params as TParams);
     } catch (error) {
       console?.error?.("Error validating Action params:", error);
-      return {
-        error: {
-          statusCode: 500,
-          headers: {
-            "content-type": "text/plain; charset=UTF-8",
-          },
-          body: "Internal Server Error: action params validation failed",
-        },
-      };
+      return buildOwResponse(
+        500,
+        { "content-type": "text/plain; charset=UTF-8" },
+        "Internal Server Error: action params validation failed",
+      );
     }
 
     // process the request
