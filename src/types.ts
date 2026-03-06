@@ -19,7 +19,6 @@ export type OwActionResponse = {
   body?: string;
   error?: {
     statusCode: number;
-    headers?: Record<string, string>;
     body: string;
   };
 };

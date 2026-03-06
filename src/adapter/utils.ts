@@ -63,18 +63,21 @@ export function buildOwResponse(
   headers: Record<string, string>,
   body: string,
 ): OwActionResponse {
-  const owResponse = {
-    statusCode,
-    headers,
-    body,
-  };
   // if status is not 2xx, wrap response  in error object, see: https://developer.adobe.com/app-builder/docs/guides/runtime_guides/creating-actions#unsuccessful-response
   if (statusCode < 200 || statusCode >= 300) {
     return {
-      error: owResponse,
+      headers,
+      error: {
+        statusCode,
+        body,
+      },
     };
   }
-  return owResponse;
+  return {
+    headers,
+    statusCode,
+    body,
+  };
 }
 
 /**
