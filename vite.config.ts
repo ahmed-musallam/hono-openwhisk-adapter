@@ -7,8 +7,8 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, "src/index.ts"),
       name: "HonoOpenwhiskAdapter",
-      formats: ["es"],
-      fileName: "index",
+      formats: ["es", "cjs"],
+      fileName: (format) => (format === "es" ? "index.js" : "index.cjs"),
     },
     sourcemap: true,
     target: "es2022",
