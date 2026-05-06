@@ -1,3 +1,9 @@
+# [2.1.0](https://github.com/ahmed-musallam/hono-openwhisk-adapter/compare/v2.0.1...v2.1.0) (2026-05-06)
+
+### Features
+
+- ship CommonJS alongside ESM ([d2f8d74](https://github.com/ahmed-musallam/hono-openwhisk-adapter/commit/d2f8d74382c6742c814dbec50d5b3dafd76280cc))
+
 ## [2.0.1](https://github.com/ahmed-musallam/hono-openwhisk-adapter/compare/v2.0.0...v2.0.1) (2026-03-06)
 
 ### Bug Fixes
