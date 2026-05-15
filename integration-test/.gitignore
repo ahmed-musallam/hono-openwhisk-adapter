@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.aio
+.env
+.env.local
+package-lock.json

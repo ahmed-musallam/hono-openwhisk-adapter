@@ -1,0 +1,26 @@
+{
+  "name": "hono-openwhisk-adapter-integration-test",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Integration test app: real App Builder action layout that exercises hono-openwhisk-adapter end-to-end.",
+  "type": "module",
+  "scripts": {
+    "build:adapter": "npm --prefix .. run build",
+    "pretest": "npm run build:adapter",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:deployed": "vitest run --config vitest.deployed.config.ts",
+    "test:deployed:logs": "vitest run --config vitest.deployed.config.ts --disableConsoleIntercept",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono-openwhisk-adapter": "file:.."
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "dotenv": "^17.0.0",
+    "esbuild-loader": "^4.3.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.0"
+  }
+}

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { paramsToRequest, responseToActionResponse } from "../../src/adapter/utils";
+import {
+  buildOwResponse,
+  encodeOwRawHttpBody,
+  isOwRawHttpBodyBase64Encoded,
+  paramsToRequest,
+  responseToActionResponse,
+} from "../../src/adapter/utils";
 
 describe("paramsToRequest", () => {
   it("builds Request with path and method", async () => {
@@ -51,18 +57,29 @@ describe("paramsToRequest", () => {
     expect(request.headers.get("accept")).toBe("application/json");
   });
 
-  it("decodes base64 body for POST", async () => {
+  it("decodes base64 body for POST when Content-Type is application/json", async () => {
     const body = JSON.stringify({ foo: "bar" });
     const encoded = Buffer.from(body, "utf-8").toString("base64");
     const request = paramsToRequest({
       __ow_path: "/",
       __ow_method: "POST",
       __ow_body: encoded,
+      __ow_headers: { "content-type": "application/json" },
     });
     expect(request.method).toBe("POST");
     expect(request.body).toBeTruthy();
     const text = await request.text();
     expect(text).toBe(body);
+  });
+
+  it("uses plain __ow_body for text/plain (OpenWhisk passes UTF-8 string, not base64)", async () => {
+    const request = paramsToRequest({
+      __ow_path: "/",
+      __ow_method: "POST",
+      __ow_body: "hello from the live integration test",
+      __ow_headers: { "content-type": "text/plain; charset=UTF-8" },
+    });
+    expect(await request.text()).toBe("hello from the live integration test");
   });
 
   it("omits body when __ow_body is undefined", () => {
@@ -82,7 +99,7 @@ describe("paramsToRequest", () => {
     expect(request.body).toBeNull();
   });
 
-  it("adds body for PUT and PATCH", async () => {
+  it("adds body for PUT and PATCH with application/json (base64 in __ow_body)", async () => {
     const body = "data";
     const encoded = Buffer.from(body, "utf-8").toString("base64");
     for (const method of ["PUT", "PATCH"] as const) {
@@ -90,10 +107,24 @@ describe("paramsToRequest", () => {
         __ow_path: "/",
         __ow_method: method,
         __ow_body: encoded,
+        __ow_headers: { "content-type": "application/json" },
       });
       expect(request.method).toBe(method);
       expect(await request.text()).toBe(body);
     }
+  });
+
+  it("decodes binary body from base64 when Content-Type is application/octet-stream", async () => {
+    const bytes = Buffer.from([0x00, 0x01, 0x02, 0xff]);
+    const encoded = bytes.toString("base64");
+    const request = paramsToRequest({
+      __ow_path: "/",
+      __ow_method: "POST",
+      __ow_body: encoded,
+      __ow_headers: { "content-type": "application/octet-stream" },
+    });
+    const out = Buffer.from(await request.arrayBuffer());
+    expect(out).toEqual(bytes);
   });
 
   it("omits body for GET even with __ow_body", () => {
@@ -161,5 +192,76 @@ describe("responseToActionResponse", () => {
     const out = await responseToActionResponse(res);
     expect(out.statusCode).toBe(200);
     expect(out.body).toBe(json);
+  });
+});
+
+describe("encodeOwRawHttpBody / isOwRawHttpBodyBase64Encoded", () => {
+  it("treats application/json as base64 in params", () => {
+    expect(isOwRawHttpBodyBase64Encoded("application/json; charset=utf-8")).toBe(true);
+    const payload = JSON.stringify({ a: 1 });
+    expect(encodeOwRawHttpBody(payload, "application/json")).toBe(
+      Buffer.from(payload, "utf-8").toString("base64"),
+    );
+  });
+
+  it("treats text/plain as plain UTF-8 string in params", () => {
+    expect(isOwRawHttpBodyBase64Encoded("text/plain")).toBe(false);
+    expect(encodeOwRawHttpBody("hello", "text/plain")).toBe("hello");
+  });
+
+  it("treats image/* as base64", () => {
+    expect(isOwRawHttpBodyBase64Encoded("image/png")).toBe(true);
+  });
+});
+
+describe("buildOwResponse", () => {
+  it("returns top-level success shape for 2xx", () => {
+    const out = buildOwResponse(200, { "content-type": "text/plain" }, "ok");
+    expect(out).toEqual({
+      statusCode: 200,
+      headers: { "content-type": "text/plain" },
+      body: "ok",
+    });
+    expect(out.error).toBeUndefined();
+  });
+
+  // 3xx are NOT application errors; OpenWhisk's own webactions docs model
+  // redirects as success responses with a Location header and 3xx statusCode.
+  it("returns top-level success shape for 3xx redirects (not error-wrapped)", () => {
+    const out = buildOwResponse(302, { location: "https://example.com" }, "");
+    expect(out).toEqual({
+      statusCode: 302,
+      headers: { location: "https://example.com" },
+      body: "",
+    });
+    expect(out.error).toBeUndefined();
+  });
+
+  // The OpenWhisk controller projects ONLY the `error` field on the error
+  // path, so headers must live INSIDE error to reach the HTTP client.
+  it("wraps 4xx in error with headers inside the error object", () => {
+    const out = buildOwResponse(404, { "content-type": "text/plain" }, "Not Found");
+    expect(out).toEqual({
+      error: {
+        statusCode: 404,
+        headers: { "content-type": "text/plain" },
+        body: "Not Found",
+      },
+    });
+    expect(out.statusCode).toBeUndefined();
+    expect(out.headers).toBeUndefined();
+  });
+
+  it("wraps 5xx in error with headers inside the error object", () => {
+    const out = buildOwResponse(500, { "x-trace": "abc" }, "boom");
+    expect(out).toEqual({
+      error: {
+        statusCode: 500,
+        headers: { "x-trace": "abc" },
+        body: "boom",
+      },
+    });
+    expect(out.statusCode).toBeUndefined();
+    expect(out.headers).toBeUndefined();
   });
 });
