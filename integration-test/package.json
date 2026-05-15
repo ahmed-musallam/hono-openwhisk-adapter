@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Integration test app: real App Builder action layout that exercises hono-openwhisk-adapter end-to-end.",
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "build:adapter": "npm --prefix .. run build",

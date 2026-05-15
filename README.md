@@ -183,3 +183,7 @@ Releases are automated with [semantic-release](https://github.com/semantic-relea
 - `feat: ...` → minor
 - `fix: ...` → patch
 - `feat!: ...` or `BREAKING CHANGE:` → major
+
+## License
+
+This project is licensed under the **Apache License, Version 2.0**. See the [`LICENSE`](LICENSE) file in the repository root (verbatim text from [apache.org/licenses/LICENSE-2.0.txt](https://www.apache.org/licenses/LICENSE-2.0.txt)).
