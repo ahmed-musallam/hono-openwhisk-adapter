@@ -32,22 +32,26 @@ const withConsoleErrorCapture = async (expectedRegex: RegExp, fn: () => Promise<
 
 // helper to execute OpenWhisk actions
 class OwHelper {
-  static invoke = (main: OwAction, { method = "GET", path = "/", body = undefined, params = {} }) =>
+  static invoke = (
+    main: OwAction,
+    { method = "GET", path = "/", body = undefined, headers, params = {} },
+  ) =>
     main({
       __ow_path: path,
       __ow_method: method,
       __ow_body: body,
+      __ow_headers: headers,
       ...params,
     });
 
   static get = (main: OwAction<any>, { path = "/", params = {} }) =>
     this.invoke(main, { method: "GET", path, params });
-  static post = (main: OwAction<any>, { path = "/", body, params = {} }) =>
-    this.invoke(main, { method: "POST", path, body, params });
-  static put = (main: OwAction<any>, { path = "/", body, params = {} }) =>
-    this.invoke(main, { method: "PUT", path, body, params });
-  static patch = (main: OwAction<any>, { path = "/", body, params = {} }) =>
-    this.invoke(main, { method: "PATCH", path, body, params });
+  static post = (main: OwAction<any>, { path = "/", body, headers, params = {} }) =>
+    this.invoke(main, { method: "POST", path, body, headers, params });
+  static put = (main: OwAction<any>, { path = "/", body, headers, params = {} }) =>
+    this.invoke(main, { method: "PUT", path, body, headers, params });
+  static patch = (main: OwAction<any>, { path = "/", body, headers, params = {} }) =>
+    this.invoke(main, { method: "PATCH", path, body, headers, params });
   static delete = (main: OwAction<any>, { path = "/", body, params = {} }) =>
     this.invoke(main, { method: "DELETE", path, body, params });
 
@@ -60,9 +64,9 @@ class OwHelper {
   };
   static errorResponse = (statusCode: number, body: string) => {
     return {
-      headers: expect.any(Object),
       error: {
         statusCode,
+        headers: expect.any(Object),
         body,
       },
     };
@@ -144,6 +148,7 @@ describe("ToOpenWhiskAction", () => {
     const result = await OwHelper.post(main, {
       path: "/body",
       body: encoded,
+      headers: { "content-type": "application/json" },
     });
 
     expect(result).toEqual(

@@ -1,5 +1,77 @@
 import type { OwRawHttpParams, OwActionResponse } from "../types";
 
+/**
+ * Reads `Content-Type` from OpenWhisk `__ow_headers` (case-insensitive key).
+ */
+function contentTypeFromOwHeaders(headers: Record<string, string> | undefined): string | undefined {
+  if (!headers) return undefined;
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === "content-type");
+  return key !== undefined ? headers[key] : undefined;
+}
+
+/**
+ * Media type only (no parameters), lowercased.
+ */
+function mediaTypeOnly(contentTypeHeader: string | undefined): string | undefined {
+  if (!contentTypeHeader) return undefined;
+  return contentTypeHeader.split(";")[0].trim().toLowerCase();
+}
+
+/**
+ * Whether OpenWhisk / Adobe I/O Runtime passes `__ow_body` as a **base64**
+ * string for this request `Content-Type`.
+ *
+ * Mirrors OpenWhisk's web-action packaging (`WhiskWebActionsApi`): the entity is
+ * base64-encoded when the media type is **binary** or exactly **`application/json`**.
+ * For typical text bodies (`text/plain`, `application/x-www-form-urlencoded`, …)
+ * the runtime passes the body as a plain UTF-8 string in the activation JSON
+ * (not base64) — decoding those as base64 corrupts the payload.
+ *
+ * @see OpenWhisk controller source — strict request entity → `__ow_body`
+ *      (`JsString(Base64...)` vs `JsString(utf8String)`):
+ *      https://github.com/apache/openwhisk/blob/master/core/controller/src/main/scala/org/apache/openwhisk/core/controller/WebActions.scala#L614-L623
+ * @see Adobe I/O Runtime HTTP context (table): https://developer.adobe.com/app-builder/docs/guides/runtime_guides/creating-actions/#http-context
+ */
+export function isOwRawHttpBodyBase64Encoded(contentTypeHeader: string | undefined): boolean {
+  const mt = mediaTypeOnly(contentTypeHeader);
+  if (!mt) return false;
+  if (mt === "application/json") return true;
+  if (mt.startsWith("image/")) return true;
+  if (mt.startsWith("video/")) return true;
+  if (mt.startsWith("audio/")) return true;
+  if (mt.startsWith("font/")) return true;
+  if (mt === "application/octet-stream") return true;
+  if (mt === "application/pdf") return true;
+  if (mt === "application/zip") return true;
+  if (mt === "application/gzip") return true;
+  if (mt === "application/x-gzip") return true;
+  if (mt === "application/x-tar") return true;
+  if (mt === "application/wasm") return true;
+  return false;
+}
+
+/**
+ * Serializes an outgoing request body the same way OpenWhisk puts it in
+ * `__ow_body` for raw web actions — useful for local tests and tooling.
+ */
+export function encodeOwRawHttpBody(
+  body: string | Buffer,
+  contentTypeHeader: string | undefined,
+): string {
+  const buf = typeof body === "string" ? Buffer.from(body, "utf-8") : body;
+  if (isOwRawHttpBodyBase64Encoded(contentTypeHeader)) {
+    return buf.toString("base64");
+  }
+  return buf.toString("utf-8");
+}
+
+function decodeOwRawHttpBody(bodyRaw: string, contentTypeHeader: string | undefined): BodyInit {
+  if (isOwRawHttpBodyBase64Encoded(contentTypeHeader)) {
+    return Buffer.from(bodyRaw, "base64");
+  }
+  return bodyRaw;
+}
+
 function parseQuery(query: string | Record<string, string> | undefined): URLSearchParams {
   if (!query) {
     return new URLSearchParams();
@@ -14,7 +86,11 @@ function parseQuery(query: string | Record<string, string> | undefined): URLSear
 /**
  * Builds a standard Request from OpenWhisk raw HTTP params.
  * Mirrors the extraction used in ow-s2s-proxy: path, method, query, headers, body.
- * With web: "raw", __ow_body is typically base64-encoded; it is decoded here.
+ *
+ * `__ow_body` encoding follows the OpenWhisk / Adobe I/O Runtime raw web-action
+ * contract: **base64** for `application/json` and binary media types; **plain
+ * UTF-8 string** for everything else (e.g. `text/plain`). See
+ * {@link isOwRawHttpBodyBase64Encoded}.
  */
 export function paramsToRequest(params: OwRawHttpParams): Request {
   const path = params.__ow_path ?? "/";
@@ -22,11 +98,9 @@ export function paramsToRequest(params: OwRawHttpParams): Request {
   const searchParams = parseQuery(params.__ow_query as string | Record<string, string> | undefined);
   const headers = params.__ow_headers ?? {};
   const bodyRaw = params.__ow_body;
-  // if body is base64-encoded, due to raw-http: true, decode it
+  const contentType = contentTypeFromOwHeaders(params.__ow_headers);
   const body =
-    bodyRaw !== undefined && bodyRaw !== ""
-      ? Buffer.from(bodyRaw, "base64").toString("utf-8")
-      : undefined;
+    bodyRaw !== undefined && bodyRaw !== "" ? decodeOwRawHttpBody(bodyRaw, contentType) : undefined;
 
   const url = new URL(path, "https://localhost");
   url.search = searchParams.toString();
@@ -63,12 +137,16 @@ export function buildOwResponse(
   headers: Record<string, string>,
   body: string,
 ): OwActionResponse {
-  // if status is not 2xx, wrap response  in error object, see: https://developer.adobe.com/app-builder/docs/guides/runtime_guides/creating-actions#unsuccessful-response
-  if (statusCode < 200 || statusCode >= 300) {
+  // 4xx/5xx are wrapped in an `error` object so OpenWhisk treats the activation
+  // as an applicationError. The controller projects only the `error` field on
+  // the error path, so headers must live inside it to reach the HTTP client.
+  // 1xx/2xx/3xx (incl. redirects) are returned at the top level as success.
+  // See: https://github.com/apache/openwhisk/blob/master/docs/webactions.md#error-handling
+  if (statusCode >= 400) {
     return {
-      headers,
       error: {
         statusCode,
+        headers,
         body,
       },
     };

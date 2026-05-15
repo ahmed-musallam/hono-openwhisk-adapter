@@ -1,0 +1,33 @@
+application:
+  runtimeManifest:
+    packages:
+      adapter-integration-test:
+        license: Apache-2.0
+        actions:
+          status:
+            function: actions/status/index.ts
+            web: "raw"
+            runtime: nodejs:22
+            annotations:
+              require-adobe-auth: false
+          headers:
+            function: actions/headers/index.ts
+            web: "raw"
+            runtime: nodejs:22
+            annotations:
+              require-adobe-auth: false
+          body:
+            function: actions/body/index.ts
+            web: "raw"
+            runtime: nodejs:22
+            annotations:
+              require-adobe-auth: false
+          params:
+            function: actions/params/index.ts
+            web: "raw"
+            runtime: nodejs:22
+            annotations:
+              require-adobe-auth: false
+            inputs:
+              MY_INPUT_VAR: $MY_INPUT_VAR
+              MY_OTHER_INPUT: $MY_OTHER_INPUT

@@ -7,6 +7,12 @@ export type OwRawHttpParams = {
   __ow_method?: string;
   __ow_query?: string;
   __ow_headers?: Record<string, string>;
+  /**
+   * Request body as delivered by the raw web-action runtime.
+   * Encoding depends on request `Content-Type`: base64 for `application/json`
+   * and binary media types; plain UTF-8 string for `text/plain` and other
+   * non-binary types (see `isOwRawHttpBodyBase64Encoded` in the adapter).
+   */
   __ow_body?: string;
 };
 
@@ -19,6 +25,7 @@ export type OwActionResponse = {
   body?: string;
   error?: {
     statusCode: number;
+    headers?: Record<string, string>;
     body: string;
   };
 };

@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": [
+    "actions/**/*.ts",
+    "test/**/*.ts",
+    "live/**/*.ts",
+    "vitest.config.ts",
+    "vitest.deployed.config.ts"
+  ]
+}
