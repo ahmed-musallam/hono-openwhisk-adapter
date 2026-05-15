@@ -1,5 +1,5 @@
 /**
- * OpenWhisk raw HTTP invocation params (when raw-http: true).
+ * OpenWhisk raw HTTP invocation params (when web: "raw").
  * @see https://github.com/apache/openwhisk/blob/master/docs/actions.md#raw-http-handling
  */
 export type OwRawHttpParams = {
@@ -11,7 +11,7 @@ export type OwRawHttpParams = {
 };
 
 /**
- * OpenWhisk action response shape (for raw-http web actions).
+ * OpenWhisk action response shape (for raw web actions).
  */
 export type OwActionResponse = {
   statusCode?: number;

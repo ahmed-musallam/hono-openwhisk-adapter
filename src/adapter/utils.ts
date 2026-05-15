@@ -14,7 +14,7 @@ function parseQuery(query: string | Record<string, string> | undefined): URLSear
 /**
  * Builds a standard Request from OpenWhisk raw HTTP params.
  * Mirrors the extraction used in ow-s2s-proxy: path, method, query, headers, body.
- * With raw-http: true, __ow_body is typically base64-encoded; it is decoded here.
+ * With web: "raw", __ow_body is typically base64-encoded; it is decoded here.
  */
 export function paramsToRequest(params: OwRawHttpParams): Request {
   const path = params.__ow_path ?? "/";

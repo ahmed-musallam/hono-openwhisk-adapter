@@ -12,12 +12,12 @@ For runtime validation, install any schema/validation library you like (e.g. Zod
 
 ## How to use
 
-### Setting `raw-http: true`
+### Setting `web: raw`
 
 > [!IMPORTANT]
 > This is essential for the hono adapter to work.
 
-Your action must use the `raw-http: true` [annotation](https://github.com/apache/openwhisk/blob/master/docs/annotations.md) or the `web: raw` annotation so the adapter receives the raw HTTP params.
+Your action must use the `web: raw` action property, which is equivalent to the `raw-http: true` [annotation](https://github.com/apache/openwhisk/blob/master/docs/annotations.md). This is essential for the adapter to parse the request properly.
 
 On Adobe App Builder, set it in your `*.config.yaml`:
 
@@ -29,11 +29,8 @@ application:
         actions:
           my-action:
             function: actions/my-action.ts
-            web: "yes"
+            web: "raw"
             runtime: nodejs:22
-            annotations:
-              raw-http: true
-              web-export: raw
             inputs:
               MY_VAR_ONE: $ENV_VAR_ONE
               MY_VAR_TWO: $ENV_VAR_TWO
@@ -42,7 +39,7 @@ application:
 ### Basic usage
 
 ```ts
-import { Hono } from "hono";
+import { Hono } from "hono/quick";
 import { ToOpenWhiskAction } from "hono-openwhisk-adapter";
 
 const app = new Hono();
@@ -52,6 +49,10 @@ app.get("/*", (c) => c.text("Fallback"));
 export const main = ToOpenWhiskAction(app);
 ```
 
+## "hono/quick"
+
+hono has multiple presets, in serverless functions (app builder or openwhisk), "hono/quick" is a perfect fit. Read more about [hono presets](https://hono.dev/docs/api/presets).
+
 ### Params in context (`c.env.params`)
 
 The original Action params (including `__ow_path`, `__ow_method`, ...etc) are available as `c.env.params`. Use the `OwEnv` type for typed params.
@@ -59,7 +60,7 @@ The original Action params (including `__ow_path`, `__ow_method`, ...etc) are av
 Example: in the sample yaml above, there are two `inputs`: `MY_VAR_ONE` and `MY_VAR_TWO`. which will be available in `c.env.params`:
 
 ```ts
-import { Hono } from "hono";
+import { Hono } from "hono/quick";
 import { ToOpenWhiskAction, type OwEnv, type OwRawHttpParams } from "hono-openwhisk-adapter";
 
 // Params = Ow raw HTTP params + your own params (inputs in your *.config.yaml on Adobe App Builder)
@@ -96,7 +97,7 @@ install zod `npm install zod`
 Use `zodOwParamsValidator` to wrap a Zod schema; it validates params and throws on failure.
 
 ```ts
-import { Hono } from "hono";
+import { Hono } from "hono/quick";
 import { z } from "zod";
 import { ToOpenWhiskAction, zodOwParamsValidator, type OwEnv } from "hono-openwhisk-adapter";
 
