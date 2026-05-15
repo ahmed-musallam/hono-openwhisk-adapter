@@ -98,7 +98,7 @@ export function paramsToRequest(params: OwRawHttpParams): Request {
   const searchParams = parseQuery(params.__ow_query as string | Record<string, string> | undefined);
   const headers = params.__ow_headers ?? {};
   const bodyRaw = params.__ow_body;
-  const contentType = contentTypeFromOwHeaders(headers);
+  const contentType = contentTypeFromOwHeaders(params.__ow_headers);
   const body =
     bodyRaw !== undefined && bodyRaw !== "" ? decodeOwRawHttpBody(bodyRaw, contentType) : undefined;
 

@@ -48,6 +48,27 @@ describe("paramsToRequest", () => {
     expect(new URL(request.url).search).toBe("");
   });
 
+  it("resolves Content-Type when __ow_headers is omitted (plain __ow_body)", async () => {
+    const request = paramsToRequest({
+      __ow_path: "/",
+      __ow_method: "POST",
+      __ow_body: "no-headers-plain",
+    });
+    expect(await request.text()).toBe("no-headers-plain");
+  });
+
+  it("finds Content-Type with case-insensitive header name", async () => {
+    const body = JSON.stringify({ ok: true });
+    const encoded = Buffer.from(body, "utf-8").toString("base64");
+    const request = paramsToRequest({
+      __ow_path: "/",
+      __ow_method: "POST",
+      __ow_body: encoded,
+      __ow_headers: { "CONTENT-type": "application/json" },
+    });
+    expect(await request.text()).toBe(body);
+  });
+
   it("includes headers from __ow_headers", () => {
     const request = paramsToRequest({
       __ow_path: "/",
@@ -196,12 +217,29 @@ describe("responseToActionResponse", () => {
 });
 
 describe("encodeOwRawHttpBody / isOwRawHttpBodyBase64Encoded", () => {
-  it("treats application/json as base64 in params", () => {
-    expect(isOwRawHttpBodyBase64Encoded("application/json; charset=utf-8")).toBe(true);
-    const payload = JSON.stringify({ a: 1 });
-    expect(encodeOwRawHttpBody(payload, "application/json")).toBe(
-      Buffer.from(payload, "utf-8").toString("base64"),
-    );
+  it.each([
+    ["application/json"],
+    ["application/json; charset=utf-8"],
+    ["image/png"],
+    ["image/svg+xml"],
+    ["video/mp4"],
+    ["audio/mpeg"],
+    ["font/woff2"],
+    ["application/octet-stream"],
+    ["application/pdf"],
+    ["application/zip"],
+    ["application/gzip"],
+    ["application/x-gzip"],
+    ["application/x-tar"],
+    ["application/wasm"],
+  ])("base64 mode for %s", (ct) => {
+    expect(isOwRawHttpBodyBase64Encoded(ct)).toBe(true);
+    expect(encodeOwRawHttpBody("x", ct)).toBe(Buffer.from("x", "utf-8").toString("base64"));
+  });
+
+  it("uses Buffer body for base64 output when Content-Type is binary", () => {
+    const buf = Buffer.from([0xde, 0xad]);
+    expect(encodeOwRawHttpBody(buf, "application/octet-stream")).toBe(buf.toString("base64"));
   });
 
   it("treats text/plain as plain UTF-8 string in params", () => {
@@ -209,8 +247,9 @@ describe("encodeOwRawHttpBody / isOwRawHttpBodyBase64Encoded", () => {
     expect(encodeOwRawHttpBody("hello", "text/plain")).toBe("hello");
   });
 
-  it("treats image/* as base64", () => {
-    expect(isOwRawHttpBodyBase64Encoded("image/png")).toBe(true);
+  it("treats empty or missing Content-Type as not base64", () => {
+    expect(isOwRawHttpBodyBase64Encoded("")).toBe(false);
+    expect(isOwRawHttpBodyBase64Encoded(undefined)).toBe(false);
   });
 });
 
