@@ -1,3 +1,9 @@
+## [2.1.1](https://github.com/ahmed-musallam/hono-openwhisk-adapter/compare/v2.1.0...v2.1.1) (2026-05-15)
+
+### Bug Fixes
+
+- proper handling of request/response body and fix 30x responses reported as errors ([47c9068](https://github.com/ahmed-musallam/hono-openwhisk-adapter/commit/47c906817d99a7e2a7652505260f5e2b36773cfe))
+
 # [2.1.0](https://github.com/ahmed-musallam/hono-openwhisk-adapter/compare/v2.0.1...v2.1.0) (2026-05-06)
 
 ### Features
