@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { Hono } from "hono";
+import { Hono } from "hono/quick";
 import { HTTPException } from "hono/http-exception";
 import { ToOpenWhiskAction } from "../../src/adapter/openwhisk-action-adapter";
 import type { OwAction, OwEnv } from "../../src/types";
