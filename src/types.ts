@@ -77,4 +77,6 @@ export type OwEnv<TParams = unknown> = {
  * Throw (or return a rejected promise) on validation failure.
  * Any library can be used (Zod, ArkType, Standard Schema, etc.).
  */
-export type OwParamsValidator<TParams = OwRawHttpParams> = (params: TParams) => void;
+export type OwParamsValidator<TParams = OwRawHttpParams> = (
+  params: TParams,
+) => void | Promise<void>;

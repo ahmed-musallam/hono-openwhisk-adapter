@@ -49,7 +49,7 @@ export function ToOpenWhiskAction<TParams = OwRawHttpParams>(
   return async (params: OwRawHttpParams): Promise<OwActionResponse> => {
     // validate action params
     try {
-      validateOwParams?.(params as TParams);
+      await validateOwParams?.(params as TParams);
     } catch (error) {
       console?.error?.("Error validating Action params:", error);
       return buildOwResponse(
@@ -59,8 +59,16 @@ export function ToOpenWhiskAction<TParams = OwRawHttpParams>(
       );
     }
 
-    // process the request
-    const request = paramsToRequest(params);
+    // Malformed activation params can make Request construction throw before
+    // Hono sees the request (so app.onError can't handle it); treat as 400.
+    let request: Request;
+    try {
+      request = paramsToRequest(params);
+    } catch (error) {
+      console?.error?.("Error building request from Action params:", error);
+      return buildOwResponse(400, { "content-type": "text/plain; charset=UTF-8" }, "Bad Request");
+    }
+
     const response = await app.fetch(request, { params });
     return responseToActionResponse(response);
   };
