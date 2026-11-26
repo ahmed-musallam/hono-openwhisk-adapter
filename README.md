@@ -71,6 +71,7 @@ export const main = ToOpenWhiskAction(app);
 - 🌐 **Web standards.** Hono uses the standard `Request`/`Response` APIs that [WinterTC](https://wintertc.org/) defines across server-side JavaScript runtimes.
 - ⚡ **Made for serverless.** Hono is small and fast, and it runs on runtimes with strict CPU and memory limits, such as Cloudflare Workers. That also suits short-lived actions with cold starts.
 - 🔁 **Portable.** The same app runs on [Cloudflare Workers, Deno, Bun, Node.js, and more](https://hono.dev/docs/getting-started/basic). Moving off OpenWhisk only means changing the entry point.
+- 🤖 **AI agents already know it.** Hono and the Fetch API are widely used and well documented, so coding agents write correct Hono handlers without learning OpenWhisk's `__ow_*` format. Hono also publishes [`llms.txt`](https://hono.dev/llms.txt) docs for agents.
 
 ## 🚀 Quick start
 
