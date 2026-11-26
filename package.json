@@ -2,6 +2,10 @@
   "name": "hono-openwhisk-adapter",
   "version": "2.1.1",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmed-musallam/hono-openwhisk-adapter.git"
+  },
   "files": [
     "dist"
   ],
@@ -34,7 +38,7 @@
     "@semantic-release/changelog": "^6.0.0",
     "@semantic-release/git": "^10.0.0",
     "@semantic-release/github": "^9.0.0",
-    "@semantic-release/npm": "^11.0.0",
+    "@semantic-release/npm": "^13.2.0",
     "@types/node": "^25.3.3",
     "@vitest/coverage-v8": "^3.0.0",
     "hono": "^4.0.0",
