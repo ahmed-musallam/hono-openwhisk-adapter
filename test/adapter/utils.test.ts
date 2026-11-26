@@ -214,6 +214,23 @@ describe("responseToActionResponse", () => {
     expect(out.statusCode).toBe(200);
     expect(out.body).toBe(json);
   });
+  it("keeps multiple Set-Cookie headers as an array", async () => {
+    const headers = new Headers({ "content-type": "text/plain" });
+    headers.append("set-cookie", "a=1; Path=/");
+    headers.append("set-cookie", "b=2; Path=/");
+    const result = await responseToActionResponse(new Response("ok", { headers }));
+    expect(result.headers).toEqual({
+      "content-type": "text/plain",
+      "set-cookie": ["a=1; Path=/", "b=2; Path=/"],
+    });
+  });
+
+  it("keeps a single Set-Cookie header as a string", async () => {
+    const result = await responseToActionResponse(
+      new Response("ok", { headers: { "set-cookie": "a=1" } }),
+    );
+    expect(result.headers?.["set-cookie"]).toBe("a=1");
+  });
 });
 
 describe("encodeOwRawHttpBody / isOwRawHttpBodyBase64Encoded", () => {

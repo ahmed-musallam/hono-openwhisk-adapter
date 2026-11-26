@@ -31,15 +31,22 @@ export type OwRawHttpParams = {
 };
 
 /**
+ * Response headers for a web action. Use an array value to send a header
+ * multiple times (e.g. several `Set-Cookie` headers).
+ * @see https://github.com/apache/openwhisk/blob/master/docs/webactions.md#handling-http-requests-with-actions
+ */
+export type OwResponseHeaders = Record<string, string | string[]>;
+
+/**
  * OpenWhisk action response shape (for raw web actions).
  */
 export type OwActionResponse = {
   statusCode?: number;
-  headers?: Record<string, string>;
+  headers?: OwResponseHeaders;
   body?: string;
   error?: {
     statusCode: number;
-    headers?: Record<string, string>;
+    headers?: OwResponseHeaders;
     body: string;
   };
 };
