@@ -298,4 +298,31 @@ describe("ToOpenWhiskAction", () => {
       );
     });
   });
+  it("awaits async validators and returns 500 when they reject", async () => {
+    const app = new Hono().get("/hello", (c) => c.text("Hello"));
+    const main = ToOpenWhiskAction(app, async () => {
+      await Promise.resolve();
+      throw new Error("async validation failed");
+    });
+
+    await withConsoleErrorCapture(/Error validating Action params:/, async () => {
+      await expect(OwHelper.get(main, { path: "/hello" })).resolves.toEqual(
+        OwHelper.errorResponse(500, "Internal Server Error: action params validation failed"),
+      );
+    });
+  });
+
+  it("returns 500 instead of throwing when the request cannot be built", async () => {
+    const app = new Hono().get("/hello", (c) => c.text("Hello"));
+    const main = ToOpenWhiskAction(app);
+
+    await withConsoleErrorCapture(/Error handling Action request:/, async () => {
+      await expect(
+        OwHelper.invoke(main, {
+          path: "/hello",
+          headers: { "x-bad": "line\nbreak" } as any,
+        }),
+      ).resolves.toEqual(OwHelper.errorResponse(500, "Internal Server Error"));
+    });
+  });
 });

@@ -49,7 +49,7 @@ export function ToOpenWhiskAction<TParams = OwRawHttpParams>(
   return async (params: OwRawHttpParams): Promise<OwActionResponse> => {
     // validate action params
     try {
-      validateOwParams?.(params as TParams);
+      await validateOwParams?.(params as TParams);
     } catch (error) {
       console?.error?.("Error validating Action params:", error);
       return buildOwResponse(
@@ -60,8 +60,17 @@ export function ToOpenWhiskAction<TParams = OwRawHttpParams>(
     }
 
     // process the request
-    const request = paramsToRequest(params);
-    const response = await app.fetch(request, { params });
-    return responseToActionResponse(response);
+    try {
+      const request = paramsToRequest(params);
+      const response = await app.fetch(request, { params });
+      return await responseToActionResponse(response);
+    } catch (error) {
+      console?.error?.("Error handling Action request:", error);
+      return buildOwResponse(
+        500,
+        { "content-type": "text/plain; charset=UTF-8" },
+        "Internal Server Error",
+      );
+    }
   };
 }
