@@ -123,7 +123,7 @@ export function paramsToRequest(params: OwRawHttpParams): Request {
     method,
     headers,
   };
-  if (body !== undefined && ["POST", "PUT", "PATCH"].includes(method)) {
+  if (body !== undefined && method !== "GET" && method !== "HEAD") {
     init.body = body;
   }
 

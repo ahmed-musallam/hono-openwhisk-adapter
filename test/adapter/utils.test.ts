@@ -120,10 +120,10 @@ describe("paramsToRequest", () => {
     expect(request.body).toBeNull();
   });
 
-  it("adds body for PUT and PATCH with application/json (base64 in __ow_body)", async () => {
+  it("adds body for all body-capable methods with application/json (base64 in __ow_body)", async () => {
     const body = "data";
     const encoded = Buffer.from(body, "utf-8").toString("base64");
-    for (const method of ["PUT", "PATCH"] as const) {
+    for (const method of ["POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const) {
       const request = paramsToRequest({
         __ow_path: "/",
         __ow_method: method,
