@@ -17,7 +17,8 @@
 
 ## ✨ Why?
 
-OpenWhisk web actions use a custom request and response format (`__ow_*` params in, `{ statusCode, headers, body }` out). This adapter converts between that format and the standard [Fetch](https://fetch.spec.whatwg.org/) `Request`/`Response`, so you can use plain Hono code.
+OpenWhisk web actions receive `__ow_*` params and return `{ statusCode, body }`.
+This adapter maps them to a standard `Request`/`Response`, so you write plain Hono.
 
 <table>
 <tr><th>Without the adapter</th><th>With the adapter</th></tr>
@@ -28,10 +29,12 @@ OpenWhisk web actions use a custom request and response format (`__ow_*` params 
 export async function main(params) {
   const path = params.__ow_path;
   const method = params.__ow_method;
-  const body = JSON.parse(Buffer.from(params.__ow_body, "base64").toString());
+  const raw = atob(params.__ow_body);
+  const pet = JSON.parse(raw);
+  // ...hand-rolled routing
   if (method === "post" && path === "/pets") {
-    // ...hand-rolled routing
-    return { statusCode: 201, body: JSON.stringify(body) };
+    const body = JSON.stringify(pet);
+    return { statusCode: 201, body };
   }
   return { statusCode: 404 };
 }
@@ -135,7 +138,8 @@ const app = new Hono<OwEnv<MyParams>>();
 
 app.get("/config", (c) =>
   c.json({
-    path: c.env.params.__ow_path, // raw HTTP params are always included
+    // raw HTTP params are always included
+    path: c.env.params.__ow_path,
     myVarOne: c.env.params.MY_VAR_ONE,
     myVarTwo: c.env.params.MY_VAR_TWO,
   }),
@@ -163,7 +167,8 @@ npm install zod
 ```ts
 import { Hono } from "hono/quick";
 import { z } from "zod";
-import { ToOpenWhiskAction, zodOwParamsValidator, type OwEnv } from "hono-openwhisk-adapter";
+import { ToOpenWhiskAction, zodOwParamsValidator } from "hono-openwhisk-adapter";
+import type { OwEnv } from "hono-openwhisk-adapter";
 
 const ParamsSchema = z.object({
   MY_VAR_ONE: z.string().nonempty(),
@@ -174,9 +179,12 @@ type Params = z.infer<typeof ParamsSchema>;
 
 const app = new Hono<OwEnv<Params>>();
 
-app.get("/config", (c) => c.json({ myVarOne: c.env.params.MY_VAR_ONE }));
+app.get("/config", (c) => {
+  return c.json({ myVarOne: c.env.params.MY_VAR_ONE });
+});
 
-export const main = ToOpenWhiskAction(app, zodOwParamsValidator(ParamsSchema));
+const validator = zodOwParamsValidator(ParamsSchema);
+export const main = ToOpenWhiskAction(app, validator);
 ```
 
 </details>
@@ -187,7 +195,10 @@ export const main = ToOpenWhiskAction(app, zodOwParamsValidator(ParamsSchema));
 ```ts
 import { type } from "arktype";
 
-const Params = type({ MY_VAR_ONE: "string", MY_VAR_TWO: "string" });
+const Params = type({
+  MY_VAR_ONE: "string",
+  MY_VAR_TWO: "string",
+});
 
 export const main = ToOpenWhiskAction(app, (params) => {
   Params.assert(params); // throws if invalid
@@ -201,9 +212,9 @@ export const main = ToOpenWhiskAction(app, (params) => {
 Hono routes match the part of the URL **after the action name**:
 
 ```
-https://workspace.adobeio-static.net/api/v1/web/my-package/my-action/pets/dragon/abilities
-                                                                    └──── Hono path ────┘
-                                                                     /pets/dragon/abilities
+https://<host>/api/v1/web/my-package/my-action/pets/dragon/abilities
+                                             └──── Hono path ────┘
+                                              /pets/dragon/abilities
 ```
 
 ```ts
@@ -214,7 +225,9 @@ app.get("/pets/:type", (c) => {
   return pet ? c.json(pet) : c.json({ error: "Not found" }, 404);
 });
 
-app.get("/pets/:type/abilities", (c) => c.json(getAbilities(c.req.param("type"))));
+app.get("/pets/:type/abilities", (c) => {
+  return c.json(getAbilities(c.req.param("type")));
+});
 ```
 
 For more, see [Hono routing](https://hono.dev/docs/api/routing).
@@ -265,11 +278,14 @@ Call `main` directly with fake params. Use `encodeOwRawHttpBody` to encode the b
 import { encodeOwRawHttpBody } from "hono-openwhisk-adapter";
 import { main } from "./actions/my-action";
 
+const type = "application/json";
+const body = JSON.stringify({ name: "Rex" });
+
 const res = await main({
   __ow_method: "post",
   __ow_path: "/pets",
-  __ow_headers: { "content-type": "application/json" },
-  __ow_body: encodeOwRawHttpBody(JSON.stringify({ name: "Rex" }), "application/json"),
+  __ow_headers: { "content-type": type },
+  __ow_body: encodeOwRawHttpBody(body, type),
 });
 ```
 
