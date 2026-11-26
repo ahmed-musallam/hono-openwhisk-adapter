@@ -1,3 +1,9 @@
+## [2.1.2](https://github.com/ahmed-musallam/hono-openwhisk-adapter/compare/v2.1.1...v2.1.2) (2026-11-26)
+
+### Bug Fixes
+
+- forward request body for all methods except GET and HEAD ([8131765](https://github.com/ahmed-musallam/hono-openwhisk-adapter/commit/813176515aa9ea41df6bb0fe94bbdfa981db0d1d))
+
 ## [2.1.1](https://github.com/ahmed-musallam/hono-openwhisk-adapter/compare/v2.1.0...v2.1.1) (2026-05-15)
 
 ### Bug Fixes
