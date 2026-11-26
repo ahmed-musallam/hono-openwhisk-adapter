@@ -1,3 +1,11 @@
+## [2.1.3](https://github.com/ahmed-musallam/hono-openwhisk-adapter/compare/v2.1.2...v2.1.3) (2026-11-26)
+
+### Bug Fixes
+
+- await async param validators and return 500 on request handling errors ([ceeb18b](https://github.com/ahmed-musallam/hono-openwhisk-adapter/commit/ceeb18b067fcf4e39e3bb256e65668b72fec0d31))
+- only catch request-building errors, return 400 ([2f1838b](https://github.com/ahmed-musallam/hono-openwhisk-adapter/commit/2f1838b081819be3431e5958267e9c905040e982))
+- preserve multiple Set-Cookie response headers ([4d04fe3](https://github.com/ahmed-musallam/hono-openwhisk-adapter/commit/4d04fe38a69d36e598f1d2da923d78b11980fd79))
+
 ## [2.1.2](https://github.com/ahmed-musallam/hono-openwhisk-adapter/compare/v2.1.1...v2.1.2) (2026-11-26)
 
 ### Bug Fixes
