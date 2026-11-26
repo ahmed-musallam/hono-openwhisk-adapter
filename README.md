@@ -66,6 +66,12 @@ export const main = ToOpenWhiskAction(app);
 - 📦 **Correct body handling.** Decodes base64 bodies for JSON and binary types, and keeps text bodies as plain strings.
 - 🪶 **Small.** The only required peer dependency is `hono`.
 
+### Why Hono?
+
+- 🌐 **Web standards.** Hono uses the standard `Request`/`Response` APIs that [WinterTC](https://wintertc.org/) defines across server-side JavaScript runtimes.
+- ⚡ **Made for serverless.** Hono is small and fast, and it runs on runtimes with strict CPU and memory limits, such as Cloudflare Workers. That also suits short-lived actions with cold starts.
+- 🔁 **Portable.** The same app runs on [Cloudflare Workers, Deno, Bun, Node.js, and more](https://hono.dev/docs/getting-started/basic). Moving off OpenWhisk only means changing the entry point.
+
 ## 🚀 Quick start
 
 **1. Install**
