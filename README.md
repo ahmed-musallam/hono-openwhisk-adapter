@@ -27,8 +27,10 @@ This adapter maps them to a standard `Request`/`Response`, so you write plain Ho
 
 ```js
 export async function main(params) {
+  // the HTTP request arrives as __ow_* params
   const path = params.__ow_path;
   const method = params.__ow_method;
+  // JSON bodies arrive base64-encoded
   const raw = atob(params.__ow_body);
   const pet = JSON.parse(raw);
   // ...hand-rolled routing
