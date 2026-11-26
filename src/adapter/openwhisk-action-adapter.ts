@@ -59,18 +59,17 @@ export function ToOpenWhiskAction<TParams = OwRawHttpParams>(
       );
     }
 
-    // process the request
+    // Malformed activation params can make Request construction throw before
+    // Hono sees the request (so app.onError can't handle it); treat as 400.
+    let request: Request;
     try {
-      const request = paramsToRequest(params);
-      const response = await app.fetch(request, { params });
-      return await responseToActionResponse(response);
+      request = paramsToRequest(params);
     } catch (error) {
-      console?.error?.("Error handling Action request:", error);
-      return buildOwResponse(
-        500,
-        { "content-type": "text/plain; charset=UTF-8" },
-        "Internal Server Error",
-      );
+      console?.error?.("Error building request from Action params:", error);
+      return buildOwResponse(400, { "content-type": "text/plain; charset=UTF-8" }, "Bad Request");
     }
+
+    const response = await app.fetch(request, { params });
+    return responseToActionResponse(response);
   };
 }

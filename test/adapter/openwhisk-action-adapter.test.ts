@@ -312,17 +312,17 @@ describe("ToOpenWhiskAction", () => {
     });
   });
 
-  it("returns 500 instead of throwing when the request cannot be built", async () => {
+  it("returns 400 instead of throwing when the request cannot be built", async () => {
     const app = new Hono().get("/hello", (c) => c.text("Hello"));
     const main = ToOpenWhiskAction(app);
 
-    await withConsoleErrorCapture(/Error handling Action request:/, async () => {
+    await withConsoleErrorCapture(/Error building request from Action params:/, async () => {
       await expect(
         OwHelper.invoke(main, {
           path: "/hello",
           headers: { "x-bad": "line\nbreak" } as any,
         }),
-      ).resolves.toEqual(OwHelper.errorResponse(500, "Internal Server Error"));
+      ).resolves.toEqual(OwHelper.errorResponse(400, "Bad Request"));
     });
   });
 });
