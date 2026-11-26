@@ -1,23 +1,107 @@
+<div align="center">
+
 # hono-openwhisk-adapter
 
-[Hono](https://hono.dev/) adapter for OpenWhisk. Build [OpenWhisk Actions](https://github.com/apache/openwhisk/blob/master/docs/webactions.md) (or [Adobe App Builder Actions](https://developer.adobe.com/app-builder/docs/guides/runtime_guides/creating-actions)) using Hono. Params are passed in `c.env.params`; optional validation is supported via a validator function (use any library: Zod, ArkType, Standard Schema, etc.).
+**Run [Hono](https://hono.dev/) apps as [Apache OpenWhisk](https://openwhisk.apache.org/) and [Adobe App Builder](https://developer.adobe.com/app-builder/) web actions.**
 
-## Installation
+[![npm version](https://img.shields.io/npm/v/hono-openwhisk-adapter.svg)](https://www.npmjs.com/package/hono-openwhisk-adapter)
+[![npm downloads](https://img.shields.io/npm/dm/hono-openwhisk-adapter.svg)](https://www.npmjs.com/package/hono-openwhisk-adapter)
+[![CI](https://github.com/ahmed-musallam/hono-openwhisk-adapter/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmed-musallam/hono-openwhisk-adapter/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+[Quick start](#-quick-start) · [Action params](#-action-params) · [Validation](#-validating-action-params) · [Routing](#-routing) · [API](#-api-reference) · [FAQ](#-faq)
+
+</div>
+
+---
+
+## ✨ Why?
+
+OpenWhisk web actions receive `__ow_*` params and return `{ statusCode, body }`.
+This adapter maps them to a standard `Request`/`Response`, so you write plain Hono.
+
+<table>
+<tr><th>Without the adapter</th><th>With the adapter</th></tr>
+<tr>
+<td>
+
+```js
+export async function main(params) {
+  // the HTTP request arrives as __ow_* params
+  const path = params.__ow_path;
+  const method = params.__ow_method;
+  // JSON bodies arrive base64-encoded
+  const raw = atob(params.__ow_body);
+  const pet = JSON.parse(raw);
+  // ...hand-rolled routing
+  if (method === "post" && path === "/pets") {
+    const body = JSON.stringify(pet);
+    return { statusCode: 201, body };
+  }
+  return { statusCode: 404 };
+}
+```
+
+</td>
+<td>
+
+```ts
+const app = new Hono();
+
+app.post("/pets", async (c) => {
+  const pet = await c.req.json();
+  return c.json(pet, 201);
+});
+
+export const main = ToOpenWhiskAction(app);
+```
+
+</td>
+</tr>
+</table>
+
+- 🧭 **Full Hono routing and middleware.** Path params, `app.onError`, CORS, and more.
+- 🔒 **Typed action params.** Access `inputs` and `__ow_*` params with types through `c.env.params`.
+- ✅ **Optional param validation** with any library (Zod helper included).
+- 📦 **Correct body handling.** Decodes base64 bodies for JSON and binary types, and keeps text bodies as plain strings.
+- 🪶 **Small.** The only required peer dependency is `hono`.
+
+### Why Hono?
+
+- 🌐 **Web standards.** Hono uses the standard `Request`/`Response` APIs that [WinterTC](https://wintertc.org/) defines across server-side JavaScript runtimes.
+- ⚡ **Made for serverless.** Hono is small and fast, and it runs on runtimes with strict CPU and memory limits, such as Cloudflare Workers. That also suits short-lived actions with cold starts.
+- 🔁 **Portable.** The same app runs on [Cloudflare Workers, Deno, Bun, Node.js, and more](https://hono.dev/docs/getting-started/basic). Moving off OpenWhisk only means changing the entry point.
+
+## 🚀 Quick start
+
+**1. Install**
 
 ```bash
 npm install hono-openwhisk-adapter hono
 ```
 
-For runtime validation, install any schema/validation library you like (e.g. Zod, ArkType).
+**2. Write your action**
 
-## How to use
+```ts
+// actions/my-action.ts
+import { Hono } from "hono/quick";
+import { ToOpenWhiskAction } from "hono-openwhisk-adapter";
 
-### Setting `web: raw`
+const app = new Hono();
+
+app.get("/hello", (c) => c.text("Hello!"));
+app.get("/*", (c) => c.text("Fallback"));
+
+export const main = ToOpenWhiskAction(app);
+```
+
+> [!TIP]
+> `hono/quick` is a good fit for serverless actions, which start cold often. See [Hono presets](https://hono.dev/docs/api/presets).
+
+**3. Make it a raw web action**
 
 > [!IMPORTANT]
-> This is essential for the hono adapter to work.
-
-Your action must use the `web: raw` action property, which is equivalent to the `raw-http: true` [annotation](https://github.com/apache/openwhisk/blob/master/docs/annotations.md). This is essential for the adapter to parse the request properly.
+> The action **must** use `web: raw` (the same as the `raw-http: true` [annotation](https://github.com/apache/openwhisk/blob/master/docs/annotations.md)). Without it, the adapter cannot rebuild the HTTP request.
 
 On Adobe App Builder, set it in your `*.config.yaml`:
 
@@ -36,154 +120,206 @@ application:
               MY_VAR_TWO: $ENV_VAR_TWO
 ```
 
-### Basic usage
+On plain OpenWhisk:
 
-```ts
-import { Hono } from "hono/quick";
-import { ToOpenWhiskAction } from "hono-openwhisk-adapter";
-
-const app = new Hono();
-app.get("/hello", (c) => c.text("Hello"));
-app.get("/*", (c) => c.text("Fallback"));
-
-export const main = ToOpenWhiskAction(app);
+```bash
+wsk action create my-action dist/my-action.js --web raw
 ```
 
-## "hono/quick"
+That's it. `GET <action-url>/hello` now returns `Hello!`.
 
-hono has multiple presets, in serverless functions (app builder or openwhisk), "hono/quick" is a perfect fit. Read more about [hono presets](https://hono.dev/docs/api/presets).
+## 🔑 Action params
 
-### Params in context (`c.env.params`)
-
-The original Action params (including `__ow_path`, `__ow_method`, ...etc) are available as `c.env.params`. Use the `OwEnv` type for typed params.
-
-Example: in the sample yaml above, there are two `inputs`: `MY_VAR_ONE` and `MY_VAR_TWO`. which will be available in `c.env.params`:
+`c.env.params` contains all action params: your `inputs` and the raw HTTP params (`__ow_path`, `__ow_method`, `__ow_headers`, and others). To type them, pass your params to `OwEnv<TParams>`:
 
 ```ts
 import { Hono } from "hono/quick";
-import { ToOpenWhiskAction, type OwEnv, type OwRawHttpParams } from "hono-openwhisk-adapter";
+import { ToOpenWhiskAction, type OwEnv } from "hono-openwhisk-adapter";
 
-// Params = Ow raw HTTP params + your own params (inputs in your *.config.yaml on Adobe App Builder)
-type MyParams = OwRawHttpParams & {
+// Match the `inputs` in your *.config.yaml
+type MyParams = {
   MY_VAR_ONE: string;
   MY_VAR_TWO: string;
 };
 
 const app = new Hono<OwEnv<MyParams>>();
 
-app.get("/config", (c) => {
-  return c.json({
+app.get("/config", (c) =>
+  c.json({
+    // raw HTTP params are always included
     path: c.env.params.__ow_path,
-    myVarOne: c.env.params.MY_VAR_ONE, // access to input params
-    myVarTwo: c.env.params.MY_VAR_TWO, // access to input params
-  });
-});
+    myVarOne: c.env.params.MY_VAR_ONE,
+    myVarTwo: c.env.params.MY_VAR_TWO,
+  }),
+);
 
 export const main = ToOpenWhiskAction(app);
 ```
 
-`OwEnv<TParams>` types `c.env.params` as `TParams & OwRawHttpParams`. Omit the generic for default `OwRawHttpParams`.
+`OwEnv<TParams>` types `c.env.params` as `TParams & OwRawHttpParams`. Without the generic, it is `OwRawHttpParams`.
 
-## Validating Action Params
+## ✅ Validating action params
 
-Pass a **validator function** as the second argument. It receives raw action params. Throw error on failure. You can use any library: [Zod](https://zod.dev/), [ArkType](https://arktype.io/), [Standard Schema](https://standard-schema.com/), etc.
+Pass a **validator function** as the second argument to `ToOpenWhiskAction`. It receives the raw action params and should **throw** when they are invalid. It can be async.
 
-when validation fails, the error is logged, and a generic `500` `Internal Server Error: action params validation failed` to avoid exposing private inputs.
+> [!NOTE]
+> If validation fails, the adapter logs the error and returns a generic `500 Internal Server Error: action params validation failed`. The response does not include the error details, so private inputs are not exposed.
 
-### With Zod (helper validator)
+<details open>
+<summary><b>With Zod (built-in helper)</b></summary>
 
-install zod `npm install zod`
-
-Use `zodOwParamsValidator` to wrap a Zod schema; it validates params and throws on failure.
+```bash
+npm install zod
+```
 
 ```ts
 import { Hono } from "hono/quick";
 import { z } from "zod";
-import { ToOpenWhiskAction, zodOwParamsValidator, type OwEnv } from "hono-openwhisk-adapter";
+import { ToOpenWhiskAction, zodOwParamsValidator } from "hono-openwhisk-adapter";
+import type { OwEnv } from "hono-openwhisk-adapter";
 
 const ParamsSchema = z.object({
   MY_VAR_ONE: z.string().nonempty(),
   MY_VAR_TWO: z.string().nonempty(),
 });
 
-// Params type inferred from the Zod schema:
 type Params = z.infer<typeof ParamsSchema>;
 
 const app = new Hono<OwEnv<Params>>();
 
-app.get("/me", (c) => c.json({ userId: c.env.params.userId }));
+app.get("/config", (c) => {
+  return c.json({ myVarOne: c.env.params.MY_VAR_ONE });
+});
 
-export const main = ToOpenWhiskAction(app, zodOwParamsValidator(ParamsSchema));
+const validator = zodOwParamsValidator(ParamsSchema);
+export const main = ToOpenWhiskAction(app, validator);
 ```
 
----
+</details>
 
-## Routing
+<details>
+<summary><b>With ArkType or any other library</b></summary>
 
-### Path and routing
+```ts
+import { type } from "arktype";
 
-If your action is published at  
-`https://workspace.adobeio-static.net/api/v1/web/my-package/my-action`,  
-the path used for Hono routing is the segment after the action name:
+const Params = type({
+  MY_VAR_ONE: "string",
+  MY_VAR_TWO: "string",
+});
+
+export const main = ToOpenWhiskAction(app, (params) => {
+  Params.assert(params); // throws if invalid
+});
+```
+
+</details>
+
+## 🧭 Routing
+
+Hono routes match the part of the URL **after the action name**:
 
 ```
-https://workspace.adobeio-static.net/api/v1/web/my-package/my-action/pets/dragon/abilities
-                                                                    |-------- path ------|
+https://<host>/api/v1/web/my-package/my-action/pets/dragon/abilities
+                                             └──── Hono path ────┘
+                                              /pets/dragon/abilities
 ```
-
-Example routes:
 
 ```ts
 app.get("/pets", (c) => c.json({ count: pets.length, pets }));
 
 app.get("/pets/:type", (c) => {
-  const type = c.req.param("type").toLowerCase();
-  return c.json(petStore[type] ?? { error: "Not found" }, 404);
+  const pet = petStore[c.req.param("type").toLowerCase()];
+  return pet ? c.json(pet) : c.json({ error: "Not found" }, 404);
 });
 
 app.get("/pets/:type/abilities", (c) => {
-  const type = c.req.param("type");
-  return c.json(getAbilities(type));
+  return c.json(getAbilities(c.req.param("type")));
 });
 ```
 
-See [Hono routing](https://hono.dev/docs/api/routing).
+For more, see [Hono routing](https://hono.dev/docs/api/routing).
 
----
+## 🔄 How it works
 
-## Motivation
+```mermaid
+flowchart LR
+    A["OpenWhisk params<br/>__ow_path, __ow_method,<br/>__ow_headers, __ow_body, inputs"] --> V{"validator?<br/>(optional)"}
+    V -- "throws" --> E["500 response"]
+    V -- "ok" --> R["Fetch Request"]
+    R --> H["Hono app<br/>c.env.params = params"]
+    H --> S["Fetch Response"]
+    S --> O["{ statusCode, headers, body }"]
+```
 
-OpenWhisk (and App Builder) actions use a custom input/output shape (`__ow_*` params, `{ statusCode, headers, body }`). This adapter lets you write actions using the standard [Fetch](https://fetch.spec.whatwg.org/) `Request`/`Response` model and Hono’s API, with TypeScript support and optional Zod validation.
+- **Request body:** OpenWhisk sends `__ow_body` as **base64** for `application/json` and binary types (images, PDFs, archives, and others), and as **plain UTF-8** for text types. The adapter decodes it based on the `Content-Type`.
+- **Malformed params:** If the request can't be built from the params, the adapter returns `400 Bad Request` before Hono runs.
 
----
+## 📚 API reference
 
-## Local development
+| Export                                      | Description                                                                                            |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `ToOpenWhiskAction(app, validator?)`        | Wraps a Hono app and returns an OpenWhisk `main` function.                                             |
+| `zodOwParamsValidator(schema)`              | Creates a validator from a Zod schema. Requires the optional `zod` peer dependency.                    |
+| `OwEnv<TParams>`                            | Hono env type that makes `c.env.params` typed.                                                         |
+| `OwRawHttpParams`                           | Type for the raw HTTP params (`__ow_path`, `__ow_method`, `__ow_query`, `__ow_headers`, `__ow_body`).  |
+| `OwParamsValidator<TParams>`                | Type for validator functions: `(params) => void \| Promise<void>`.                                     |
+| `OwActionResponse`, `OwResponseHeaders`     | Types for the action response. Header values can be arrays, for example multiple `Set-Cookie` headers. |
+| `encodeOwRawHttpBody(body, contentType)`    | Encodes a body the way OpenWhisk does in `__ow_body`. Useful for local tests.                          |
+| `isOwRawHttpBodyBase64Encoded(contentType)` | Returns `true` if OpenWhisk base64-encodes bodies with this `Content-Type`.                            |
 
-1. Clone this repo and build:
+## ❓ FAQ
 
-   ```bash
-   npm run build
-   npm link
-   ```
+<details>
+<summary><b>My routes always 404 or the request looks empty</b></summary>
 
-2. In your project:
+Make sure the action is deployed with `web: raw` (see [Quick start](#-quick-start)). Without it, OpenWhisk does not send the `__ow_*` params that the adapter needs.
 
-   ```bash
-   npm link hono-openwhisk-adapter
-   ```
+</details>
 
-   Run `npm run build` in this repo after changes so the linked package is up to date.
+<details>
+<summary><b>How do I unit test my action locally?</b></summary>
 
----
+Call `main` directly with fake params. Use `encodeOwRawHttpBody` to encode the body the same way OpenWhisk does:
 
-## Publishing to npm
+```ts
+import { encodeOwRawHttpBody } from "hono-openwhisk-adapter";
+import { main } from "./actions/my-action";
 
-Releases are automated with [semantic-release](https://github.com/semantic-release/semantic-release) via GitHub Actions. Use [Conventional Commits](https://www.conventionalcommits.org/):
+const type = "application/json";
+const body = JSON.stringify({ name: "Rex" });
 
-- `feat: ...` → minor
-- `fix: ...` → patch
-- `feat!: ...` or `BREAKING CHANGE:` → major
+const res = await main({
+  __ow_method: "post",
+  __ow_path: "/pets",
+  __ow_headers: { "content-type": type },
+  __ow_body: encodeOwRawHttpBody(body, type),
+});
+```
 
-## License
+</details>
 
-This project is licensed under the **Apache License, Version 2.0**. See the [`LICENSE`](LICENSE) file in the repository root (verbatim text from [apache.org/licenses/LICENSE-2.0.txt](https://www.apache.org/licenses/LICENSE-2.0.txt)).
+<details>
+<summary><b>Does it work with Hono middleware?</b></summary>
+
+Yes. The adapter calls `app.fetch` with a standard `Request`, so any Hono middleware works (`cors`, `logger`, `app.onError`, and others).
+
+</details>
+
+## 🤝 Contributing
+
+```bash
+npm install
+npm run test:run     # unit tests
+npm run lint         # oxlint
+npm run fmt:check    # oxfmt
+npm run build        # build to dist/
+```
+
+To try your changes in another project, run `npm run build && npm link` here, then run `npm link hono-openwhisk-adapter` in that project. Run `npm run build` again after each change.
+
+Releases are published automatically by [semantic-release](https://github.com/semantic-release/semantic-release). Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages: `fix:` creates a patch release, `feat:` a minor release, and `feat!:` or `BREAKING CHANGE:` a major release.
+
+## 📄 License
+
+[Apache-2.0](LICENSE)
