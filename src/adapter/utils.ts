@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-import type { OwRawHttpParams, OwActionResponse } from "../types";
+import type { OwRawHttpParams, OwActionResponse, OwResponseHeaders } from "../types";
 
 /**
  * Reads `Content-Type` from OpenWhisk `__ow_headers` (case-insensitive key).
@@ -148,7 +148,7 @@ function isTextContentType(contentType: string | null): boolean {
 
 export function buildOwResponse(
   statusCode: number,
-  headers: Record<string, string>,
+  headers: OwResponseHeaders,
   body: string,
 ): OwActionResponse {
   // 4xx/5xx are wrapped in an `error` object so OpenWhisk treats the activation
@@ -184,10 +184,15 @@ export async function responseToActionResponse(response: Response): Promise<OwAc
     ? new TextDecoder().decode(arrayBuffer)
     : Buffer.from(arrayBuffer).toString("base64");
 
-  const headers: Record<string, string> = {};
+  const headers: OwResponseHeaders = {};
+  const cookies: string[] = [];
+  // Headers iteration yields each Set-Cookie separately; collect them so none
+  // are lost. OpenWhisk sends an array value as multiple header lines.
   response.headers.forEach((value, key) => {
-    headers[key] = value;
+    if (key === "set-cookie") cookies.push(value);
+    else headers[key] = value;
   });
+  if (cookies.length > 0) headers["set-cookie"] = cookies.length === 1 ? cookies[0] : cookies;
 
   return buildOwResponse(response.status, headers, body);
 }
